@@ -12,6 +12,7 @@ export interface SettingsResponse {
   settings: Settings;
 }
 
+
 const BASE_URL = '/api';
 
 export const fetchSettings = async (jwt: string): Promise<Settings> => {

@@ -113,21 +113,23 @@ export function App() {
         <div class="cyber-section" style={{ width: '100%', maxWidth: '450px' }}>
           <h2 class="section-title">身份认证 <span>AUTH_REQUIRED</span></h2>
           <form onSubmit={handleAuthSubmit} style={{ display: 'grid', gap: '20px' }}>
-            <div class="setting-info">
-              <h3>身份令牌 (JWT)</h3>
-              <p>请输入 PRTS 授权令牌以建立连接</p>
+            <div class="setting-item vertical" style={{ borderBottom: 'none', padding: 0 }}>
+              <div class="setting-info">
+                <h3>身份令牌 (JWT)</h3>
+                <p>请输入 PRTS 授权令牌以建立连接</p>
+              </div>
+              <textarea 
+                class="input-field" 
+                style={{ minHeight: '150px', resize: 'none', fontFamily: 'var(--font-mono)' }}
+                placeholder="EYJ..."
+                value={tempJwt}
+                onInput={(e) => setTempJwt(e.currentTarget.value)}
+                required
+              ></textarea>
             </div>
-            <textarea 
-              class="input-field" 
-              style={{ minHeight: '150px', resize: 'none' }}
-              placeholder="请粘贴您的令牌内容..."
-              value={tempJwt}
-              onInput={(e) => setTempJwt(e.currentTarget.value)}
-              required
-            ></textarea>
-            {error && <div style={{ color: '#ff4d4d', fontSize: '0.8rem', textAlign: 'center' }}>{error}</div>}
-            <button class="input-field" style={{ cursor: 'pointer', background: 'var(--color-primary-dim)', fontWeight: 'bold', border: '2px solid var(--color-primary)' }}>
-              {loading ? '建立连接中...' : '开始同步'}
+            {error && <div style={{ color: '#ff4d4d', fontSize: '0.8rem', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>{error}</div>}
+            <button class="input-field" style={{ cursor: 'pointer', background: 'var(--rhodes-cyan-dim)', fontWeight: 'bold', border: '1px solid var(--rhodes-cyan)', color: 'var(--rhodes-cyan)' }}>
+              {loading ? 'CONNECTING...' : 'INIT_CONNECTION'}
             </button>
           </form>
         </div>
@@ -139,10 +141,12 @@ export function App() {
     return (
       <div class="loading-screen">
         <div class="spinner"></div>
-        <div style={{ letterSpacing: '4px', fontSize: '0.8rem', marginTop: '20px' }}>PRTS_SYNCING...</div>
+        <div class="loading-text">PRTS_SYNCING...</div>
       </div>
     );
   }
+
+  if (!settings) return null;
 
   return (
     <>
@@ -167,9 +171,9 @@ export function App() {
             <span>Session_Exp</span>
             <span>{formatTime(userData?.exp)}</span>
           </div>
-          <div class="info-item" style={{ cursor: 'pointer', opacity: 1, color: '#ff4d4d' }} onClick={logout}>
-            <span>Action</span>
-            <span>登出</span>
+          <div class="info-item" style={{ cursor: 'pointer', opacity: 1 }} onClick={logout}>
+            <span style={{ color: '#ff4d4d' }}>Action</span>
+            <span style={{ color: '#ff4d4d', textDecoration: 'underline' }}>LOGOUT</span>
           </div>
         </div>
       </header>
@@ -187,7 +191,7 @@ export function App() {
             <label class="switch">
               <input 
                 type="checkbox" 
-                checked={settings?.isTurnTimeLimitEnabled} 
+                checked={settings.isTurnTimeLimitEnabled} 
                 onChange={(e) => handleUpdate('isTurnTimeLimitEnabled', e.currentTarget.checked)}
                 disabled={!!updating}
               />
@@ -202,8 +206,8 @@ export function App() {
             <input 
               type="number" 
               class="input-field" 
-              style={{ width: '85px' }}
-              value={settings?.turnTimeLimit}
+              style={{ width: '100px', textAlign: 'center' }}
+              value={settings.turnTimeLimit}
               onChange={(e) => handleUpdate('turnTimeLimit', parseInt(e.currentTarget.value))}
               disabled={!!updating}
             />
@@ -217,7 +221,7 @@ export function App() {
             <label class="switch">
               <input 
                 type="checkbox" 
-                checked={settings?.isSharedPoolEnabled} 
+                checked={settings.isSharedPoolEnabled} 
                 onChange={(e) => handleUpdate('isSharedPoolEnabled', e.currentTarget.checked)}
                 disabled={!!updating}
               />
@@ -233,7 +237,7 @@ export function App() {
             <label class="switch">
               <input 
                 type="checkbox" 
-                checked={settings?.isRoomVisibleInLobby} 
+                checked={settings.isRoomVisibleInLobby} 
                 onChange={(e) => handleUpdate('isRoomVisibleInLobby', e.currentTarget.checked)}
                 disabled={!!updating}
               />
@@ -241,12 +245,12 @@ export function App() {
             </label>
           </div>
 
-          <div class="setting-item" style={{ marginTop: '20px', flexDirection: 'column', alignItems: 'stretch', gap: '10px', borderBottom: 'none' }}>
+          <div class="setting-item vertical">
             <div class="setting-info">
               <h3>助理干员委派</h3>
             </div>
             <SecretarySelector
-              value={settings?.secretary}
+              value={settings.secretary}
               onChange={(value) => handleUpdate('secretary', value)}
               disabled={!!updating}
             />
@@ -261,7 +265,7 @@ export function App() {
               {MAPS.map(map => (
                 <div 
                   key={map.id} 
-                  class={`map-card ${settings?.enabledMaps?.includes(map.id) ? 'active' : ''}`}
+                  class={`map-card ${settings.enabledMaps?.includes(map.id) ? 'active' : ''}`}
                   onClick={() => !updating && toggleMap(map.id)}
                 >
                   <img src={map.image} alt={map.name} loading="lazy" />
@@ -277,7 +281,7 @@ export function App() {
               {Object.entries(NAME_CARDS).map(([id, info]) => (
                 <div 
                   key={id} 
-                  class={`nc-card ${settings?.nameCardSkinId === id ? 'active' : ''}`}
+                  class={`nc-card ${settings.nameCardSkinId === id ? 'active' : ''}`}
                   title={info.name}
                   onClick={() => !updating && handleUpdate('nameCardSkinId', id)}
                 >

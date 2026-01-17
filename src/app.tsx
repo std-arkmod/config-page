@@ -27,6 +27,28 @@ export function App() {
     }
   }, [jwt]);
 
+  /* Theme Configuration */
+  const THEMES = [
+    { id: 'rhodes', label: '主题: 橘戍' },
+    { id: 'original', label: '主题: 原始' }
+    // Add new themes here: { id: 'new-theme', label: '主题: 新主题' }
+  ];
+
+  const [theme, setTheme] = useState<string>(localStorage.getItem('theme') || 'rhodes');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const currentIndex = THEMES.findIndex(t => t.id === theme);
+    const nextIndex = (currentIndex + 1) % THEMES.length;
+    setTheme(THEMES[nextIndex].id);
+  };
+
+  const currentThemeLabel = THEMES.find(t => t.id === theme)?.label || '主题';
+
   const parseJwt = (token: string) => {
     try {
       const payloadBase64 = token.split('.')[1];
@@ -117,8 +139,8 @@ export function App() {
               <h3>身份令牌 (JWT)</h3>
               <p>请输入 PRTS 授权令牌以建立连接</p>
             </div>
-            <textarea 
-              class="input-field" 
+            <textarea
+              class="input-field"
               style={{ minHeight: '150px', resize: 'none' }}
               placeholder="请粘贴您的令牌内容..."
               value={tempJwt}
@@ -126,7 +148,7 @@ export function App() {
               required
             ></textarea>
             {error && <div style={{ color: '#ff4d4d', fontSize: '0.8rem', textAlign: 'center' }}>{error}</div>}
-            <button class="input-field" style={{ cursor: 'pointer', background: 'var(--color-primary-dim)', fontWeight: 'bold', border: '2px solid var(--color-primary)' }}>
+            <button class="input-field" style={{ cursor: 'pointer', background: 'var(--color-bg-card)', color: 'var(--color-text-main)', fontWeight: 'bold', border: '1px solid var(--color-border-active)' }}>
               {loading ? '建立连接中...' : '开始同步'}
             </button>
           </form>
@@ -146,48 +168,44 @@ export function App() {
 
   return (
     <>
-      <div class="bg-text bg-text-1">RHODES</div>
-      <div class="bg-text bg-text-2">ISLAND</div>
+      <div class="bg-decoration"></div>
 
       <header class="top-header">
-        <h1>
-          明日方舟·橘戍协议
-          <span style={{ fontSize: '0.5rem', opacity: '0.5', fontWeight: '400', marginTop: '2px', display: 'block' }}>TERMINAL_INTERFACE // v2.0.4</span>
-        </h1>
-        <div class="user-info">
-          <div class="info-item">
-            <span>Operator</span>
-            <span>{userData?.nickname || 'UNKNOWN'}</span>
-          </div>
-          <div class="info-item">
-            <span>UID</span>
-            <span>{userData?.user_id || 'N/A'}</span>
-          </div>
-          <div class="info-item">
-            <span>Session_Exp</span>
-            <span>{formatTime(userData?.exp)}</span>
-          </div>
-          <div class="info-item" style={{ cursor: 'pointer', opacity: 1, color: '#ff4d4d' }} onClick={logout}>
-            <span>Action</span>
-            <span>登出</span>
-          </div>
+        <div class="brand">
+          <h1>明日方舟·橘戍协议</h1>
+          <span class="brand-subtitle">TERMINAL_INTERFACE // v2.0.4</span>
         </div>
+
+        <nav class="main-nav">
+          <a href="#" class="nav-item active">配置中心</a>
+          <span class="nav-divider">//</span>
+          <a href="#" class="nav-item" onClick={toggleTheme}>
+            {currentThemeLabel}
+          </a>
+          <span class="nav-divider">//</span>
+          <a href="#" class="nav-item">操作员: {userData?.nickname || 'UNKNOWN'}</a>
+          <span class="nav-divider">//</span>
+          <a href="#" class="nav-item" onClick={logout}>登出</a>
+        </nav>
       </header>
 
       <div class="container">
-        {/* 配置区 */}
+        {/* Settings Module */}
         <aside class="cyber-section">
-          <h2 class="section-title">核心参数 <span>CORE_V1.0</span></h2>
-          
+          <h2 class="section-title">
+            核心参数
+            <span>CORE_V1.0</span>
+          </h2>
+
           <div class="setting-item">
             <div class="setting-info">
               <h3>回合限时模式</h3>
               <p>启用后将执行严格操作时限</p>
             </div>
             <label class="switch">
-              <input 
-                type="checkbox" 
-                checked={settings?.isTurnTimeLimitEnabled} 
+              <input
+                type="checkbox"
+                checked={settings?.isTurnTimeLimitEnabled}
                 onChange={(e) => handleUpdate('isTurnTimeLimitEnabled', e.currentTarget.checked)}
                 disabled={!!updating}
               />
@@ -199,10 +217,10 @@ export function App() {
             <div class="setting-info">
               <h3>时限数值 (秒)</h3>
             </div>
-            <input 
-              type="number" 
-              class="input-field" 
-              style={{ width: '85px' }}
+            <input
+              type="number"
+              class="input-field"
+              style={{ width: '85px', textAlign: 'center' }}
               value={settings?.turnTimeLimit}
               onChange={(e) => handleUpdate('turnTimeLimit', parseInt(e.currentTarget.value))}
               disabled={!!updating}
@@ -215,9 +233,9 @@ export function App() {
               <p>所有玩家共用资源池</p>
             </div>
             <label class="switch">
-              <input 
-                type="checkbox" 
-                checked={settings?.isSharedPoolEnabled} 
+              <input
+                type="checkbox"
+                checked={settings?.isSharedPoolEnabled}
                 onChange={(e) => handleUpdate('isSharedPoolEnabled', e.currentTarget.checked)}
                 disabled={!!updating}
               />
@@ -231,9 +249,9 @@ export function App() {
               <p>是否在大厅公开广播</p>
             </div>
             <label class="switch">
-              <input 
-                type="checkbox" 
-                checked={settings?.isRoomVisibleInLobby} 
+              <input
+                type="checkbox"
+                checked={settings?.isRoomVisibleInLobby}
                 onChange={(e) => handleUpdate('isRoomVisibleInLobby', e.currentTarget.checked)}
                 disabled={!!updating}
               />
@@ -251,32 +269,44 @@ export function App() {
               disabled={!!updating}
             />
           </div>
+
+          <div class="user-status-card">
+            <div class="status-row"><span>UID</span> <span>{userData?.user_id || 'N/A'}</span></div>
+            <div class="status-row"><span>会话有效期</span> <span>{formatTime(userData?.exp)}</span></div>
+          </div>
         </aside>
 
-        {/* 列表区 */}
-        <div style={{ display: 'grid', gap: '30px' }}>
+        {/* Content Area */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
           <section class="cyber-section">
-            <h2 class="section-title">授权战区地图 <span>MAP_AUTH</span></h2>
+            <h2 class="section-title">
+              授权战区地图
+              <span>MAP_AUTH</span>
+            </h2>
             <div class="maps-grid">
               {MAPS.map(map => (
-                <div 
-                  key={map.id} 
+                <div
+                  key={map.id}
                   class={`map-card ${settings?.enabledMaps?.includes(map.id) ? 'active' : ''}`}
                   onClick={() => !updating && toggleMap(map.id)}
                 >
                   <img src={map.image} alt={map.name} loading="lazy" />
                   <div class="map-label">{map.name}</div>
+                  <div class="map-overlay"></div>
                 </div>
               ))}
             </div>
           </section>
 
           <section class="cyber-section">
-            <h2 class="section-title">身份标识涂装 <span>ID_SKINS</span></h2>
+            <h2 class="section-title">
+              身份标识涂装
+              <span>ID_SKINS</span>
+            </h2>
             <div class="nc-grid">
               {Object.entries(NAME_CARDS).map(([id, info]) => (
-                <div 
-                  key={id} 
+                <div
+                  key={id}
                   class={`nc-card ${settings?.nameCardSkinId === id ? 'active' : ''}`}
                   title={info.name}
                   onClick={() => !updating && handleUpdate('nameCardSkinId', id)}

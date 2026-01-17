@@ -109,7 +109,7 @@ export function App() {
   if (!jwt || error) {
     return (
       <div class="auth-container">
-        <div class="bg-text bg-text-1">RHODES</div>
+        <div class="bg-text bg-text-1">GARRISON</div>
         <div class="cyber-section" style={{ width: '100%', maxWidth: '450px' }}>
           <h2 class="section-title">身份认证 <span>AUTH_REQUIRED</span></h2>
           <form onSubmit={handleAuthSubmit} style={{ display: 'grid', gap: '20px' }}>
@@ -128,7 +128,7 @@ export function App() {
               ></textarea>
             </div>
             {error && <div style={{ color: '#ff4d4d', fontSize: '0.8rem', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>{error}</div>}
-            <button class="input-field" style={{ cursor: 'pointer', background: 'var(--rhodes-cyan-dim)', fontWeight: 'bold', border: '1px solid var(--rhodes-cyan)', color: 'var(--rhodes-cyan)' }}>
+            <button class="input-field" style={{ cursor: 'pointer', background: 'var(--gp-amber-dim)', fontWeight: 'bold', border: '1px solid var(--gp-amber)', color: 'var(--gp-amber)', textShadow: '0 0 5px var(--gp-amber)' }}>
               {loading ? 'CONNECTING...' : 'INIT_CONNECTION'}
             </button>
           </form>
@@ -141,7 +141,7 @@ export function App() {
     return (
       <div class="loading-screen">
         <div class="spinner"></div>
-        <div class="loading-text">PRTS_SYNCING...</div>
+        <div class="loading-text">SYNC_DATA...</div>
       </div>
     );
   }
@@ -150,13 +150,13 @@ export function App() {
 
   return (
     <>
-      <div class="bg-text bg-text-1">RHODES</div>
-      <div class="bg-text bg-text-2">ISLAND</div>
+      <div class="bg-text bg-text-1">GARRISON</div>
+      <div class="bg-text bg-text-2">PROTOCOL</div>
 
       <header class="top-header">
         <h1>
-          明日方舟·橘戍协议
-          <span style={{ fontSize: '0.5rem', opacity: '0.5', fontWeight: '400', marginTop: '2px', display: 'block' }}>TERMINAL_INTERFACE // v2.0.4</span>
+          明日方舟 · 卫戍协议
+          <span style={{ fontSize: '0.5rem', opacity: '0.5', fontWeight: '400', marginTop: '2px', display: 'block' }}>GARRISON_PROTOCOL_SYS // v2.0.4</span>
         </h1>
         <div class="user-info">
           <div class="info-item">

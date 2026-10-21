@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { executeCheatAction, fetchBountyList, type BountyCatalog, type CheatConnection } from './api';
 
 // Season markup is displayed as text, never interpreted as HTML.
@@ -6,29 +6,22 @@ function plainText(value: string) {
   return value.replace(/<[^>]*>/g, '').replace(/\\n/g, '\n');
 }
 
-export function BountyPanel({ jwt, connection, onChanged }: {
+export function BountyPanel({ jwt, connection, targetUserId, onChanged }: {
   jwt: string;
   connection: CheatConnection;
+  targetUserId: string;
   onChanged: () => Promise<void>;
 }) {
   const [catalog, setCatalog] = useState<BountyCatalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [effectId, setEffectId] = useState('');
-  const [targetUserId, setTargetUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-  const requestUserId = connection.requestUserId ?? connection.userId;
-  const playerKey = connection.players.map(p => `${p.userId}:${!!p.isEliminated}`).join('|');
-  const targets = connection.players.filter(p =>
-    !p.isEliminated && (connection.isAdmin || p.userId === requestUserId));
-  const target = targets.find(p => p.userId === targetUserId);
+  const active = useRef(true);
+  const target = connection.players.find(p => !p.isEliminated && p.userId === targetUserId);
 
-  useEffect(() => {
-    setTargetUserId(current => targets.some(p => p.userId === current)
-      ? current
-      : (targets.find(p => p.userId === requestUserId)?.userId ?? targets[0]?.userId ?? ''));
-  }, [connection.teamId, connection.isAdmin, requestUserId, playerKey]);
+  useEffect(() => () => { active.current = false; }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,12 +55,12 @@ export function BountyPanel({ jwt, connection, onChanged }: {
       const response = await executeCheatAction(jwt, 'ADD_BOUNTY', {
         effectId: selected.effectId, targetUserId: target.userId,
       }, connection.teamId);
-      setResult({ ok: true, text: response.message });
+      if (active.current) setResult({ ok: true, text: response.message });
       await onChanged();
     } catch (error) {
-      setResult({ ok: false, text: error instanceof Error ? error.message : '添加悬赏失败' });
+      if (active.current) setResult({ ok: false, text: error instanceof Error ? error.message : '添加悬赏失败' });
     } finally {
-      setSaving(false);
+      if (active.current) setSaving(false);
     }
   };
 
@@ -78,15 +71,7 @@ export function BountyPanel({ jwt, connection, onChanged }: {
         <span>免费 · 下一场普通战斗 · 仅一次</span>
       </div>
       <div class="admin-bounty-target">
-        <label>
-          作用玩家
-          {connection.isAdmin ? (
-            <select class="select-field" aria-label="悬赏作用玩家" value={targetUserId} onChange={e => setTargetUserId(e.currentTarget.value)}>
-              {!targets.length && <option value="">没有存活玩家</option>}
-              {targets.map(p => <option key={p.userId} value={p.userId}>{p.nickName}</option>)}
-            </select>
-          ) : <strong>{target?.nickName ?? '本人已淘汰或不在对局中'}</strong>}
-        </label>
+        <span>作用于 <strong>{target?.nickName ?? '请先选择作用玩家'}</strong></span>
         <span>{catalog?.targetRound != null ? `第 ${catalog.targetRound} 回合生效` : '没有后续普通战斗'}</span>
       </div>
       <div class="admin-bounty-layout">

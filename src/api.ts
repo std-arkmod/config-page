@@ -385,17 +385,18 @@ export const kickPlayer = async (jwt: string, userId: string): Promise<{ success
   return response.json();
 };
 
-/** 执行作弊操作（只操作自己的角色/队伍） */
+/** 执行队内操作；玩家目标用于金币、生命、盟约层数和添加棋子。 */
 export const executeCheatAction = async (
   jwt: string,
   action: CheatAction,
   value?: any,
   teamId?: string,
+  targetUserId?: string,
 ): Promise<{ success: boolean; message: string }> => {
   const response = await fetch(`${BASE_URL}/cheat/action?jwt=${jwt}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, value, teamId }),
+    body: JSON.stringify({ action, value, teamId, targetUserId }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: response.statusText }));

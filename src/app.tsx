@@ -729,6 +729,62 @@ function CheatConsole({ jwt }: { jwt: string }) {
   const [connections, setConnections] = useState<CheatConnection[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const active = useRef(true);
+  const statusVersion = useRef(0);
+
+  const applyStatus = (data: CheatConnection[]) => {
+    setConnections(data);
+    setSelectedTeamId(prev => prev && data.some(conn => conn.teamId === prev) ? prev : (data[0]?.teamId ?? null));
+    setError(null);
+  };
+
+  const poll = async () => {
+    if (!active.current) return;
+    const version = ++statusVersion.current;
+    try {
+      const data = await fetchCheatStatus(jwt);
+      if (active.current && version === statusVersion.current) applyStatus(data);
+    } catch (e) {
+      if (active.current && version === statusVersion.current) setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  useEffect(() => {
+    void poll();
+    const source = subscribeCheatStatus(jwt, data => {
+      if (!active.current) return;
+      ++statusVersion.current;
+      applyStatus(data);
+    }, message => { if (active.current) setError(message || null); });
+    return () => { active.current = false; source.close(); };
+  }, [jwt]);
+
+  const connection = connections.find(conn => conn.teamId === selectedTeamId) ?? connections[0];
+  if (!connection) return (
+    <div class="admin-tools admin-tools-v2">
+      <div class="admin-empty">{error ? `连接失败：${error}` : '暂无在线队伍'}</div>
+    </div>
+  );
+  return <CheatTeamTools key={connection.teamId} jwt={jwt} connection={connection}
+    connections={connections} error={error} onSelectTeam={setSelectedTeamId} onChanged={poll} />;
+}
+
+function CheatTeamTools({ jwt, connection: selectedConn, connections, error, onSelectTeam, onChanged: poll }: {
+  jwt: string;
+  connection: CheatConnection;
+  connections: CheatConnection[];
+  error: string | null;
+  onSelectTeam: (teamId: string) => void;
+  onChanged: () => Promise<void>;
+}) {
+  const targets = selectedConn.players.filter(player => !player.isEliminated);
+  const [targetUserId, setTargetUserId] = useState(() => (
+    targets.find(player => player.userId === (selectedConn.requestUserId ?? selectedConn.userId))?.userId
+      ?? targets[0]?.userId ?? ''
+  ));
+  const target = targets.find(player => player.userId === targetUserId);
+  const playerKey = targets.map(player => player.userId).join('|');
+  const [developerOpen, setDeveloperOpen] = useState(false);
   const [chessListCache, setChessListCache] = useState<Record<string, { chars: ChessItem[]; traps: ChessItem[]; bonds: BondItem[] }>>({});
   const [coinValue, setCoinValue] = useState('');
   const [hpValue, setHpValue] = useState('');
@@ -745,11 +801,34 @@ function CheatConsole({ jwt }: { jwt: string }) {
   const [transferLoading, setTransferLoading] = useState<string | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedConn = connections.find(conn => conn.teamId === selectedTeamId) ?? connections[0] ?? null;
-  const selectedTeam = selectedConn?.teamId ?? '';
+  const selectedTeam = selectedConn.teamId;
   const chess = selectedTeam ? chessListCache[selectedTeam] : undefined;
   const isAdminView = connections.some(conn => conn.isAdmin);
   const me = selectedConn?.players.find(p => p.userId === selectedConn.userId) ?? selectedConn?.players[0] ?? null;
+  const active = useRef(true);
+  const actionScope = target?.userId ?? '';
+  const currentScope = useRef({ target: actionScope, version: 0 });
+  if (currentScope.current.target !== actionScope) {
+    currentScope.current = { target: actionScope, version: currentScope.current.version + 1 };
+  }
+  const scopeVersion = currentScope.current.version;
+  const isCurrent = () => active.current && currentScope.current.version === scopeVersion;
+
+  useEffect(() => () => { active.current = false; }, []);
+  useEffect(() => {
+    if (targetUserId && !targets.some(player => player.userId === targetUserId)) setTargetUserId('');
+  }, [targetUserId, playerKey]);
+  useEffect(() => {
+    setCoinValue('');
+    setHpValue('');
+    setRoundValue('');
+    setBondId('');
+    setBondCount('1');
+    setChessId('');
+    setChessSearch('');
+    setActionResult(null);
+    setActionLoading(null);
+  }, [actionScope]);
   const allChess = chess ? [...chess.chars, ...chess.traps] : [];
   const visibleChess = allChess.filter(item => {
     const text = `${item.chessId} ${item.charId ?? ''} ${item.name ?? ''} ${item.charId ? CHARACTER_NAME_MAP[item.charId] ?? '' : ''}`.toLowerCase();
@@ -757,28 +836,18 @@ function CheatConsole({ jwt }: { jwt: string }) {
   }).slice(0, 160);
 
   const showResult = (key: string, ok: boolean, msg: string) => {
-    setActionResult({ key, ok, msg });
-    window.setTimeout(() => setActionResult(current => current?.key === key ? null : current), 3200);
-  };
-
-  const poll = async () => {
-    try {
-      const data = await fetchCheatStatus(jwt);
-      setConnections(data);
-      setSelectedTeamId(prev => prev && data.some(conn => conn.teamId === prev) ? prev : (data[0]?.teamId ?? null));
-      setError(null);
-    } catch (e: any) {
-      setError(e.message);
-    }
+    if (!isCurrent()) return;
+    const result = { key, ok, msg };
+    setActionResult(result);
+    window.setTimeout(() => { if (active.current) setActionResult(current => current === result ? null : current); }, 3200);
   };
 
   const loadChessList = async (teamId: string) => {
     if (chessListCache[teamId]) return;
     try {
       const data = await fetchChessList(jwt, teamId);
+      if (!active.current) return;
       setChessListCache(prev => ({ ...prev, [teamId]: data }));
-      setBondId(current => current || data.bonds[0]?.bondId || '');
-      setChessId(current => current || data.chars[0]?.chessId || data.traps[0]?.chessId || '');
     } catch (e: any) {
       showResult('chess-list', false, e.message);
     }
@@ -787,25 +856,11 @@ function CheatConsole({ jwt }: { jwt: string }) {
   const loadSnapshots = async (teamId: string) => {
     try {
       const data = await fetchSnapshots(jwt, teamId);
-      setSnapshots(prev => ({ ...prev, [teamId]: data }));
+      if (active.current) setSnapshots(prev => ({ ...prev, [teamId]: data }));
     } catch (e: any) {
       showResult('snapshot', false, e.message);
     }
   };
-
-  useEffect(() => {
-    poll();
-    const source = subscribeCheatStatus(
-      jwt,
-      (data) => {
-        setConnections(data);
-        setSelectedTeamId(prev => prev && data.some(conn => conn.teamId === prev) ? prev : (data[0]?.teamId ?? null));
-        setError(null);
-      },
-      (message) => setError(message || null),
-    );
-    return () => source.close();
-  }, [jwt]);
 
   useEffect(() => {
     if (!selectedTeam) return;
@@ -814,16 +869,17 @@ function CheatConsole({ jwt }: { jwt: string }) {
   }, [selectedTeam]);
 
   const doAction = async (key: string, action: string, value?: any) => {
-    if (!selectedTeam) return;
+    const playerAction = ['SET_COIN', 'SET_HP', 'SET_BOND_STACK', 'ADD_CHESS'].includes(action);
+    if (playerAction && !target) return;
     setActionLoading(key);
     try {
-      const result = await executeCheatAction(jwt, action as any, value, selectedTeam);
+      const result = await executeCheatAction(jwt, action as any, value, selectedTeam, playerAction ? target?.userId : undefined);
       showResult(key, true, result.message);
       await poll();
     } catch (e: any) {
       showResult(key, false, e.message);
     } finally {
-      setActionLoading(null);
+      if (isCurrent()) setActionLoading(null);
     }
   };
 
@@ -888,14 +944,6 @@ function CheatConsole({ jwt }: { jwt: string }) {
     }
   };
 
-  if (!selectedConn) {
-    return (
-      <div class="admin-tools admin-tools-v2">
-        <div class="admin-empty">{error ? `连接失败：${error}` : '暂无在线队伍'}</div>
-      </div>
-    );
-  }
-
   const Result = ({ k }: { k: string }) => (
     actionResult?.key === k ? (
       <span class={`admin-result ${actionResult.ok ? 'ok' : 'bad'}`}>
@@ -908,11 +956,11 @@ function CheatConsole({ jwt }: { jwt: string }) {
     <div class="admin-tools admin-tools-v2">
       <div class="admin-hero">
         <div>
-          <div class="admin-kicker">{isAdminView ? '管理员视图' : '我的队伍'} · 每 2 秒自动刷新</div>
+          <div class="admin-kicker">{isAdminView ? '管理员视图' : '我的队伍'} · 实时同步</div>
           <h3>{selectedConn.nickname ?? me?.nickName ?? '当前连接'}</h3>
           <div class="admin-hero-meta">
             <span class={selectedConn.inBattle ? 'live' : ''}>{selectedConn.inBattle ? `对局中 · R${selectedConn.round ?? '-'}` : selectedConn.teamState}</span>
-            <span>{selectedConn.players.length} 人在线</span>
+            <span>{selectedConn.players.length} 名玩家</span>
             {error && <span class="danger">同步失败：{error}</span>}
           </div>
         </div>
@@ -923,7 +971,7 @@ function CheatConsole({ jwt }: { jwt: string }) {
                 key={conn.teamId}
                 type="button"
                 class={conn.teamId === selectedTeam ? 'active' : ''}
-                onClick={() => setSelectedTeamId(conn.teamId)}
+                onClick={() => onSelectTeam(conn.teamId)}
               >
                 {conn.nickname ?? conn.players[0]?.nickName ?? '队伍'}
                 <span>队内 {conn.players.length} 人 · {conn.inBattle ? `R${conn.round ?? '-'}` : conn.teamState}</span>
@@ -938,10 +986,12 @@ function CheatConsole({ jwt }: { jwt: string }) {
       <div class="admin-player-strip">
         {selectedConn.players.map(player => (
           <div class="admin-player-chip" key={player.uid}>
-            <strong>{player.nickName}</strong>
-            <span>生命 {player.hp ?? '-'}</span>
-            <span>金币 {player.coin ?? '-'}</span>
-            <span>棋子 {player.charChessCount}</span>
+            <strong title={player.nickName}>{player.nickName}</strong>
+            <span class="admin-player-stats">
+              <span title={`生命 ${player.hp ?? '-'}`}>生命 {player.hp ?? '-'}</span>
+              <span title={`金币 ${player.coin ?? '-'}`}>金币 {player.coin ?? '-'}</span>
+              <span title={`棋子 ${player.charChessCount}`}>棋子 {player.charChessCount}</span>
+            </span>
             <button
               type="button"
               disabled={kickLoading === player.userId}
@@ -954,23 +1004,32 @@ function CheatConsole({ jwt }: { jwt: string }) {
         ))}
       </div>
 
+      <label class="admin-target-picker">
+        <span>作用玩家</span>
+        <select class="select-field" aria-label="作用玩家" value={target?.userId ?? ''} onChange={event => setTargetUserId(event.currentTarget.value)}>
+          <option value="">{targets.length ? '请选择玩家' : '没有存活玩家'}</option>
+          {targets.map(player => <option key={player.userId} value={player.userId}>{player.nickName}</option>)}
+        </select>
+        <small>金币、生命、盟约层数、棋子与悬赏</small>
+      </label>
+
       <div class="admin-grid">
         <section class="admin-command-panel">
           <div class="admin-panel-title">
             <h4>常用调整</h4>
-            <span>作用于 {me?.nickName ?? '当前玩家'}</span>
+            <span>作用于 {target?.nickName ?? '请选择玩家'} · 回合为整队生效</span>
           </div>
           <div class="admin-command-list">
             <label>
               <span>金币</span>
-              <input class="input-field" type="number" min="0" max="999" placeholder={String(me?.coin ?? '')} value={coinValue} onInput={e => setCoinValue(e.currentTarget.value)} />
-              <button type="button" disabled={actionLoading === 'coin'} onClick={() => doAction('coin', 'SET_COIN', Number(coinValue || 0))}>{actionLoading === 'coin' ? '执行中' : '设置'}</button>
+              <input class="input-field" type="number" min="0" max="999" placeholder={String(target?.coin ?? '')} value={coinValue} onInput={e => setCoinValue(e.currentTarget.value)} />
+              <button type="button" disabled={!target || actionLoading === 'coin'} onClick={() => doAction('coin', 'SET_COIN', Number(coinValue || 0))}>{actionLoading === 'coin' ? '执行中' : '设置'}</button>
               <Result k="coin" />
             </label>
             <label>
               <span>生命</span>
-              <input class="input-field" type="number" min="0" max="9999" placeholder={String(me?.hp ?? '')} value={hpValue} onInput={e => setHpValue(e.currentTarget.value)} />
-              <button type="button" disabled={actionLoading === 'hp'} onClick={() => doAction('hp', 'SET_HP', Number(hpValue || 0))}>{actionLoading === 'hp' ? '执行中' : '设置'}</button>
+              <input class="input-field" type="number" min="0" max="9999" placeholder={String(target?.hp ?? '')} value={hpValue} onInput={e => setHpValue(e.currentTarget.value)} />
+              <button type="button" disabled={!target || actionLoading === 'hp'} onClick={() => doAction('hp', 'SET_HP', Number(hpValue || 0))}>{actionLoading === 'hp' ? '执行中' : '设置'}</button>
               <Result k="hp" />
             </label>
             <label>
@@ -981,11 +1040,11 @@ function CheatConsole({ jwt }: { jwt: string }) {
             </label>
             <label>
               <span>盟约层数</span>
-              <select class="select-field" value={bondId} onChange={e => setBondId(e.currentTarget.value)}>
+              <select class="select-field" value={bondId || chess?.bonds[0]?.bondId || ''} onChange={e => setBondId(e.currentTarget.value)}>
                 {chess ? chess.bonds.map(b => <option key={b.bondId} value={b.bondId}>{b.name}</option>) : <option value="">加载中</option>}
               </select>
               <input class="input-field compact" type="number" min="0" max="99" value={bondCount} onInput={e => setBondCount(e.currentTarget.value)} />
-              <button type="button" disabled={actionLoading === 'bond'} onClick={() => doAction('bond', 'SET_BOND_STACK', { bondId: bondId || chess?.bonds[0]?.bondId || '', count: Number(bondCount || 1) })}>{actionLoading === 'bond' ? '执行中' : '设置'}</button>
+              <button type="button" disabled={!target || !chess?.bonds.length || actionLoading === 'bond'} onClick={() => doAction('bond', 'SET_BOND_STACK', { bondId: bondId || chess?.bonds[0]?.bondId || '', count: Number(bondCount || 1) })}>{actionLoading === 'bond' ? '执行中' : '设置'}</button>
               <Result k="bond" />
             </label>
           </div>
@@ -1022,15 +1081,13 @@ function CheatConsole({ jwt }: { jwt: string }) {
                 );
               })}
             </div>
-            <button type="button" disabled={actionLoading === 'chess' || !chessId} onClick={() => doAction('chess', 'ADD_CHESS', chessId || visibleChess[0]?.chessId || '')}>
+            <button type="button" disabled={!target || actionLoading === 'chess' || !chessId} onClick={() => doAction('chess', 'ADD_CHESS', chessId)}>
               {actionLoading === 'chess' ? '添加中' : '添加到备战区'}
             </button>
             <Result k="chess" />
           </div>
         </section>
       </div>
-
-      <BountyPanel key={selectedTeam} jwt={jwt} connection={selectedConn} onChanged={poll} />
 
       <section class="admin-command-panel">
         <div class="admin-panel-title">
@@ -1091,6 +1148,16 @@ function CheatConsole({ jwt }: { jwt: string }) {
             ))
           )}
         </div>
+      </section>
+      <section class="admin-command-panel admin-developer-tools">
+        <button type="button" class="admin-developer-toggle" aria-expanded={developerOpen}
+          aria-controls="season-developer-content" onClick={() => setDeveloperOpen(open => !open)}>
+          <strong>赛季开发工具</strong>
+          <span>指定悬赏 · {developerOpen ? '收起' : '展开'}</span>
+        </button>
+        {developerOpen && <div id="season-developer-content">
+          <BountyPanel key={actionScope} jwt={jwt} connection={selectedConn} targetUserId={target?.userId ?? ''} onChanged={poll} />
+        </div>}
       </section>
     </div>
   );
@@ -1874,6 +1941,8 @@ export function App() {
   const [loading, setLoading] = useState(() => authState.activeUserId !== null);
   const [error, setError] = useState<string | null>(null);
   const [accountActionError, setAccountActionError] = useState<string | null>(null);
+  const [switchingProfile, setSwitchingProfile] = useState(false);
+  const accountRequest = useRef(0);
   const [updating, setUpdating] = useState<string | null>(null);
   const [userData, setUserData] = useState<JwtPayload | null>(null);
   const [page, setPage] = useState<'dashboard' | 'tools' | 'settlement'>('dashboard');
@@ -1900,8 +1969,11 @@ export function App() {
     const profile = authState.profiles.find((item) => item.userId === userId);
     if (!profile) throw new Error('找不到要切换的本地账户');
 
+    const request = ++accountRequest.current;
+    setSwitchingProfile(true);
     try {
       const nextSettings = await fetchSettings(profile.token);
+      if (request !== accountRequest.current) return;
       const nextState: AuthProfileState = { ...authState, activeUserId: userId };
       persistAuthState(nextState);
       setSettings(nextSettings);
@@ -1909,9 +1981,12 @@ export function App() {
       setError(null);
       setAccountActionError(null);
     } catch (switchError) {
+      if (request !== accountRequest.current) return;
       const message = switchError instanceof Error ? switchError.message : String(switchError);
       setAccountActionError(`切换失败：${message}`);
       throw new Error(`账户校验失败：${message}`);
+    } finally {
+      if (request === accountRequest.current) setSwitchingProfile(false);
     }
   };
 
@@ -2032,6 +2107,8 @@ export function App() {
   };
 
   const logout = () => {
+    ++accountRequest.current;
+    setSwitchingProfile(false);
     persistAuthState({ ...authState, activeUserId: null });
     setSettings(null);
     setUserData(null);
@@ -2095,18 +2172,23 @@ export function App() {
       <div class="bg-text bg-text-2">ISLAND</div>
       <ThemeStickerLayer stickers={fallingStickers} active={theme !== 'mono'} />
 
+      <div class="app-top-shell">
       <header class="top-header">
         <h1>
           <img class="title-mascot" src={themeMemeSrc(theme, panelIcons[6])} alt="" />
-          {theme === 'yellow' ? '明日方舟·铃兰协议' : '明日方舟·橘戍协议'}
-          <span style={{ fontSize: '0.5rem', opacity: '0.5', fontWeight: '400', marginTop: '2px', display: 'block' }}>TERMINAL_INTERFACE // v2.0.4</span>
+          <span class="header-brand">
+            {theme === 'yellow' ? '明日方舟·铃兰协议' : '明日方舟·橘戍协议'}
+            <small>TERMINAL_INTERFACE // v2.0.4</small>
+          </span>
         </h1>
         <div class="user-info">
-          <div class="header-account-switch">
-            <span>活动账户</span>
+          <div class="info-item header-operator">
+            <span>Operator</span>
             <select
+              aria-label="切换账户"
+              title={userData?.nickname || activeProfile?.nickname || ''}
               value={authState.activeUserId ?? ''}
-              disabled={loading}
+              disabled={loading || switchingProfile}
               onChange={(event) => {
                 const userId = event.currentTarget.value;
                 if (userId && userId !== authState.activeUserId) {
@@ -2120,20 +2202,10 @@ export function App() {
                 </option>
               ))}
             </select>
-            <button type="button" onClick={() => openAccountCenter('accounts')}>
-              管理账户
-            </button>
-            <button type="button" class="new-token" onClick={() => openAccountCenter('token')}>
-              登录新 Token
-            </button>
           </div>
-          <div class="info-item">
-            <span>Operator</span>
-            <span>{userData?.nickname || 'UNKNOWN'}</span>
-          </div>
-          <div class="info-item">
+          <div class="info-item header-uid">
             <span>UID</span>
-            <span>{userData?.user_id || 'N/A'}</span>
+            <span title={userData?.user_id || ''}>{userData?.user_id || 'N/A'}</span>
           </div>
           <div class="info-item">
             <span>Session_Exp</span>
@@ -2143,10 +2215,10 @@ export function App() {
             {theme === 'pink' ? <Heart20Regular /> : theme === 'yellow' ? <WeatherSunny20Regular /> : <WeatherMoon20Regular />}
             <span>{theme === 'pink' ? '粉色主题' : theme === 'yellow' ? '黄色主题' : '黑白主题'}</span>
           </button>
-          <div class="info-item" style={{ cursor: 'pointer', opacity: 1, color: '#ff4d4d' }} onClick={logout}>
+          <button type="button" class="info-item header-logout" onClick={logout}>
             <span>Action</span>
             <span>退出当前</span>
-          </div>
+          </button>
         </div>
         {accountActionError && <div class="header-account-error">{accountActionError}</div>}
       </header>
@@ -2185,6 +2257,7 @@ export function App() {
           </span>
         )}
       </nav>
+      </div>
 
       {page === 'dashboard' ? (
         <div class="container dashboard-container">
@@ -2453,7 +2526,7 @@ export function App() {
       ) : page === 'tools' ? (
         <div class="container dashboard-container">
           <DashboardDetail title="管理工具" code="ADMIN_TOOLS">
-            <CheatConsole jwt={jwt} />
+            <CheatConsole key={jwt} jwt={jwt} />
           </DashboardDetail>
         </div>
       ) : (

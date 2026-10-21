@@ -61,19 +61,24 @@ body[data-theme="pink"] {
 }
 
 /* 顶部信息栏 */
-.top-header {
-  position: fixed;
+.app-top-shell {
+  position: sticky;
   top: 0;
+  z-index: 100;
+}
+
+.top-header {
+  position: relative;
   width: 100%;
-  min-height: 70px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(5, 6, 7, 0.98));
   border-bottom: 2px solid var(--color-primary);
   backdrop-filter: blur(15px);
   z-index: 100;
   display: flex;
-  flex-direction: column;
-  padding: 15px 20px;
-  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px 24px;
+  gap: 14px 24px;
   box-shadow: 0 5px 25px rgba(0,0,0,0.8);
 }
 
@@ -82,25 +87,30 @@ body[data-theme="pink"] .top-header {
   box-shadow: 0 10px 28px rgba(214, 101, 151, 0.14);
 }
 
-@media (min-width: 768px) {
-  .top-header {
-    flex-direction: row;
-    align-items: center;
-    padding: 0 40px;
-    height: 75px;
-  }
-}
-
 .top-header h1 {
   font-size: 1.25rem;
   margin: 0;
-  letter-spacing: 4px;
+  letter-spacing: 2px;
   font-weight: 900;
   text-shadow: 0 0 10px var(--color-primary-mid);
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header-brand {
+  min-width: 0;
+}
+
+.header-brand small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.5rem;
+  font-weight: 400;
+  letter-spacing: 2px;
+  opacity: 0.5;
 }
 
 .title-mascot {
@@ -117,9 +127,12 @@ body[data-theme="pink"] .title-mascot {
 }
 
 .user-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 20px;
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) minmax(90px, 1fr) auto auto auto;
+  align-items: center;
+  flex: 1 1 600px;
+  min-width: 0;
+  gap: 8px 12px;
   font-size: 0.7rem;
   margin-left: auto;
 }
@@ -127,6 +140,49 @@ body[data-theme="pink"] .title-mascot {
 .info-item {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.header-uid span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-operator select {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 3px 24px 3px 8px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-primary);
+  color-scheme: dark;
+  font: inherit;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.header-operator option {
+  background: var(--color-bg);
+  color: var(--color-primary);
+}
+
+body[data-theme="pink"] .header-operator select,
+body[data-theme="yellow"] .header-operator select {
+  color-scheme: light;
+}
+
+.header-logout {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-primary);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
 }
 
 .info-item span:first-child {
@@ -221,16 +277,10 @@ body[data-theme="yellow"] .theme-sticker-motion {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 170px 20px 60px; /* 增加左右 padding */
+  padding: 24px 20px 60px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 30px;
-}
-
-@media (min-width: 768px) {
-  .container {
-    padding-top: 130px;
-  }
 }
 
 @media (min-width: 1024px) {
@@ -712,7 +762,7 @@ body[data-theme="pink"] .detail-back {
 .admin-player-strip {
   display: flex;
   gap: 10px;
-  overflow-x: auto;
+  flex-wrap: wrap;
   padding-bottom: 2px;
 }
 
@@ -751,11 +801,14 @@ body[data-theme="pink"] .detail-back {
 }
 
 .admin-player-chip {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) minmax(0, auto) auto;
   align-items: center;
   gap: 10px;
-  flex: 0 0 auto;
-  padding: 10px;
+  flex: 1 1 300px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 10px;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
   background: var(--color-surface);
@@ -764,6 +817,80 @@ body[data-theme="pink"] .detail-back {
 
 .admin-player-chip strong {
   font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-player-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.admin-player-chip .admin-player-stats span {
+  font-size: inherit;
+  opacity: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-player-chip > .admin-result {
+  grid-column: 1 / -1;
+}
+
+.admin-target-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 0.78rem;
+}
+
+.admin-target-picker select {
+  flex: 1 1 140px;
+  max-width: 260px;
+  min-width: 0;
+}
+
+.admin-target-picker small {
+  opacity: 0.55;
+}
+
+.admin-tools-v2 .admin-developer-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.admin-tools-v2 .admin-developer-toggle:hover:not(:disabled) {
+  transform: none;
+  background: transparent;
+}
+
+.admin-developer-toggle span {
+  font-size: 0.68rem;
+  opacity: 0.58;
+}
+
+.admin-developer-tools .admin-bounty-panel {
+  margin-top: 14px;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .admin-grid {
@@ -1420,8 +1547,7 @@ body[data-theme="pink"] .selector-dropdown {
 /* ─── Page Navigation ─────────────────────────────────────────────── */
 
 .page-nav {
-  position: fixed;
-  top: 75px;
+  position: relative;
   width: 100%;
   z-index: 99;
   display: flex;
@@ -1469,6 +1595,7 @@ body[data-theme="pink"] .page-nav {
 
 @media (max-width: 767px) {
   .page-nav {
+    position: fixed;
     top: auto;
     bottom: 0;
     padding: 0;
@@ -1486,15 +1613,8 @@ body[data-theme="pink"] .page-nav {
 /* ─── Container wide (for settlement full-width) ─────────────────── */
 
 .container-wide {
-  padding-top: 150px !important;
   grid-template-columns: 1fr !important;
   max-width: 1200px;
-}
-
-@media (min-width: 768px) {
-  .container-wide {
-    padding-top: 140px !important;
-  }
 }
 
 /* ─── Settlement Charts ───────────────────────────────────────────── */
@@ -1574,16 +1694,13 @@ body[data-theme="pink"] .settlement-history-row:hover {
   transform: translateY(1px);
 }
 
-/* Responsive container adjustments for nav */
-@media (min-width: 768px) {
-  .container {
-    padding-top: 155px;
-  }
-}
-
 @media (max-width: 767px) {
   body {
     background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+  }
+
+  .app-top-shell {
+    position: static;
   }
 
   .top-header {
@@ -1596,6 +1713,26 @@ body[data-theme="pink"] .settlement-history-row:hover {
     width: 100%;
     margin-left: 0;
     gap: 8px 14px;
+    flex-basis: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .top-header h1 {
+    font-size: clamp(0.95rem, 4.8vw, 1.25rem);
+    letter-spacing: 1px;
+  }
+
+  .top-header .title-mascot {
+    width: 32px;
+    height: 32px;
+  }
+
+  .header-uid {
+    grid-column: 2 / -1;
+  }
+
+  .header-logout {
+    justify-self: end;
   }
 
   .theme-toggle {
@@ -1802,9 +1939,17 @@ body[data-theme="pink"] .settlement-history-row:hover {
   }
 
   .admin-player-chip {
-    align-items: flex-start;
-    flex-direction: column;
-    min-width: 160px;
+    flex-basis: 100%;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .admin-player-stats {
+    gap: 6px;
+  }
+
+  .admin-player-chip > button {
+    padding: 6px 8px;
   }
 
   .admin-danger-actions,

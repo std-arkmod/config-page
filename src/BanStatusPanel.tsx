@@ -109,7 +109,7 @@ function OperatorAvatar({ name }: { name: string }) {
 }
 
 export function BanStatusPanel({ banStatus, chessList }: BanStatusPanelProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const contentId = useId();
   const charById = new Map((chessList?.chars ?? []).map((item) => [item.chessId, item]));
   const bondById = new Map((chessList?.bonds ?? []).map((item) => [item.bondId, item]));
@@ -162,9 +162,8 @@ export function BanStatusPanel({ banStatus, chessList }: BanStatusPanelProps) {
                 <article class="ban-bond-group" key={group.bondId}>
                   <div class="ban-bond-identity">
                     <span class="ban-bond-sequence">{String(groupIndex + 1).padStart(2, '0')}</span>
-                    <span class="ban-bond-emblem" aria-hidden="true">{bondName.slice(0, 1)}</span>
-                    <strong>{bondName}</strong>
-                    <code>{group.bondId}</code>
+                    <strong title={bondName}>{bondName}</strong>
+                    <code title={group.bondId}>{group.bondId}</code>
                   </div>
                   <div class="ban-group-characters">
                     {group.characters.length === 0 ? (

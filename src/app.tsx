@@ -2193,7 +2193,7 @@ export function App() {
               <SettingsSectionItem
                 title="核心参数"
                 code="CORE_V1.0"
-                description="配置回合限时、共享池、公开权限、人数上限、重复盟约和助理干员。"
+                description="配置回合限时、共享池、教鞭模式、公开权限、人数上限、重复盟约和助理干员。"
                 iconSrc={themeMemeSrc(theme, panelIcons[0])}
                 onClick={() => setDashboardPanel('core')}
               />
@@ -2293,6 +2293,24 @@ export function App() {
                   <span class="slider"></span>
                 </label>
               </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <h3>教鞭模式</h3>
+                <p>正常：仅自己选择；所有：所有人选择；恩人：除自己外的人选择。采用房主设置，下一局生效</p>
+              </div>
+              <select
+                class="select-field"
+                aria-label="教鞭模式"
+                value={settings?.whipTargetMode ?? 'normal'}
+                onChange={(e) => handleUpdate('whipTargetMode', e.currentTarget.value)}
+                disabled={!!updating}
+              >
+                <option value="normal">正常</option>
+                <option value="all">所有</option>
+                <option value="benefactor">恩人</option>
+              </select>
             </div>
 
             <div class="setting-item">

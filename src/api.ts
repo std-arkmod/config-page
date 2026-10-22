@@ -13,7 +13,7 @@ export interface Settings {
   turnTimeLimitSettings: TurnTimeLimitSettings;
   isSharedPoolEnabled: boolean;
   immediateDeathEnabled: boolean;
-  whipTargetMode: 'normal' | 'all' | 'benefactor';
+  whipTargetMode: 'normal' | 'all' | 'benefactor' | 'enemy';
   enabledMaps: string[];
   nameCardSkinId: string;
   secretary: string;

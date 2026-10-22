@@ -2371,7 +2371,7 @@ export function App() {
             <div class="setting-item">
               <div class="setting-info">
                 <h3>教鞭模式</h3>
-                <p>正常：仅自己选择；所有：所有人选择；恩人：除自己外的人选择。采用房主设置，下一局生效</p>
+                <p>正常：仅自己选择；所有：所有人选择；恩人：其他人选择并各自挑战；仇人：其他人选择，悬赏全部由自己挑战</p>
               </div>
               <select
                 class="select-field"
@@ -2383,13 +2383,14 @@ export function App() {
                 <option value="normal">正常</option>
                 <option value="all">所有</option>
                 <option value="benefactor">恩人</option>
+                <option value="enemy">仇人</option>
               </select>
             </div>
 
             <div class="setting-item">
               <div class="setting-info">
                 <h3>立即死亡模式</h3>
-                <p>结算后生命值低于 0 时立即失败，仅可观战；采用房主设置，下一局生效</p>
+                <p>结算后生命值低于 0 时立即失败，仅可观战</p>
               </div>
               <div class="switch-card compact">
                 <label class="switch">
